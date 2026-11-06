@@ -4,7 +4,7 @@ Dynamic Single-Camera Vision Processing Daemon (vision_worker.py)
 Enterprise Crowd Monitor Vision Daemon.
 No longer uses hardcoded video paths or polygon coordinates!
 Dynamically queries the backend API (/api/videos/active) to fetch:
-  1. The target video path (custom uploaded MP4 or default).
+  1. The target video path (custom uploaded MP4, video_1.mp4, or default).
   2. The custom dynamic zone polygon coordinates defined by the user in the UI.
   3. Zone capacities, square-meter areas, and alert thresholds.
 
@@ -348,8 +348,10 @@ def find_local_video_file(preferred_path: Optional[str] = None) -> Optional[Path
             if candidate.exists() and candidate.is_file():
                 return candidate.resolve()
 
-    # Search for fallback local recordings
+    # Search for fallback local recordings including video_1.mp4
     candidates = [
+        Path("video_1.mp4"),
+        Path("backend/video_1.mp4"),
         Path("Screen Recording 2026-11-03 221109.mp4"),
         Path("backend/Screen Recording 2026-11-03 221109.mp4"),
         Path("uploads/videos"),
@@ -671,7 +673,7 @@ def run_dynamic_vision_worker():
                         # Label badge
                         M = cv2.moments(poly)
                         cx = int(M["m10"] / M["m00"]) if M["m00"] != 0 else poly[0][0]
-                        cy = int(M["m01"] / M["m00"]) if M["m01"] != 0 else poly[0][1]
+                        cy = int(M["m01"] / M["m00"]) if M["m00"] != 0 else poly[0][1]
 
                         cv2.rectangle(annotated, (cx - 50, cy - 18), (cx + 50, cy + 18), (10, 10, 15), -1)
                         cv2.rectangle(annotated, (cx - 50, cy - 18), (cx + 50, cy + 18), color, 1)
