@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL Relational Database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: crowdmonitor_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crowdmonitor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crowdmonitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. FastAPI Backend & Vision Ingestion API
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: crowdmonitor_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword2026@postgres:5432/crowdmonitor
+      - JWT_SECRET_KEY=crowd-monitor-production-super-secret-jwt-key-2026
+      # SMTP Email Configuration for Real-time Control Room Escalation Alerts
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-alerts@crowdmonitor.io}
+      - CONTROL_ROOM_EMAILS=${CONTROL_ROOM_EMAILS:-harmanpreet7012@gmail.com,dispatch@crowdmonitor.io}
+    volumes:
+      - uploads_data:/app/uploads
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # 3. React 19 Frontend Dashboard & Interactive Zone Studio (Nginx)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crowdmonitor_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+      - "80:80"
+
+  # ----------------------------------------------------------------------------
+  # 4. Dynamic Vision Daemon (YOLOv8s + DM-Count ML Pipeline)
+  # ----------------------------------------------------------------------------
+  vision_worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: crowdmonitor_vision_worker
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - BACKEND_API_URL=http://backend:8000/api
+      - DM_COUNT_WEIGHTS_PATH=/app/models/dm_count_best.pth
+    volumes:
+      - uploads_data:/app/uploads
+      - ./models:/app/models
+    command: ["python", "vision_worker.py"]
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local

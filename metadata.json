@@ -1,0 +1,6 @@
+{
+  "name": "Crowd Monitor - Zone Occupancy & Crowd Counting",
+  "description": "Real-time single-camera zone occupancy, crowd counting, and automated alert escalation system for Times Square viewpoints.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
